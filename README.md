@@ -9,4 +9,4 @@ The watchdog scales the RunPod endpoint to 0 workers when a worker keeps running
 with nothing queued or in progress beyond idle timeout + 2 min, or when a job stays in
 progress with nothing finishing for more than 32 min, then restores it once the workers are gone.
 
-Trigger a run manually: `gh workflow run watchdog.yml --repo GloriaWang23/h3-watchdog`
+Trigger a run manually: `gh workflow run billing-watchdog.yml --repo GloriaWang23/h3-watchdog`
