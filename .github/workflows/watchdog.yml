@@ -1,0 +1,30 @@
+name: h3 billing watchdog
+
+# Every 5 minutes, ask the H3 Studio watchdog to check the RunPod serverless endpoint.
+# It scales the endpoint to 0 workers if a worker keeps billing with no work, and
+# restores it once the workers are gone. All logic lives in the studio's /api/watchdog.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write # keepalive: re-enable the schedule before GitHub's 60-day inactivity cutoff
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Call watchdog
+        env:
+          WATCHDOG_SECRET: ${{ secrets.WATCHDOG_SECRET }}
+          WATCHDOG_URL: ${{ vars.WATCHDOG_URL }}
+        run: |
+          curl -fsS --retry 3 --retry-delay 10 -m 60 \
+            -H "Authorization: Bearer $WATCHDOG_SECRET" \
+            -H "x-watchdog-source: github-actions" \
+            "$WATCHDOG_URL" > out.json
+          python3 -c "import json;d=json.load(open('out.json'));c=d['state']['lastCheck'];s=d['snapshot'];print('verdict:',c['verdict'],'| running:',s['running'],'queued:',s['queued'],'inProgress:',s['inProgress'],'| spend/h:',s['spendPerHr'])"
+      - name: Keep schedule alive
+        uses: gautamkrishnar/keepalive-workflow@v2
