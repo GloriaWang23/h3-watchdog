@@ -27,6 +27,20 @@ jobs:
             "$WATCHDOG_URL" > out.json
           python3 -c "import json;d=json.load(open('out.json'));c=d['state']['lastCheck'];s=d['snapshot'];print('verdict:',c['verdict'],'| running:',s['running'],'queued:',s['queued'],'inProgress:',s['inProgress'],'| spend/h:',s['spendPerHr'])"
 
+      # A failed run is how you get an email: GitHub notifies on failed scheduled runs.
+      # The watchdog returns each alert-worthy incident (forced scale-down, circuit-breaker
+      # hold) exactly once, so one incident means one failed run, not a failure every 5 min.
+      # If the call itself fails (studio down, bad secret), the step above already fails.
+      - name: Fail on new incidents
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          alerts = json.load(open("out.json")).get("alerts") or []
+          for a in alerts:
+              print(f"::error title=H3 watchdog {a['kind']}::{a['at']} {a['detail']}")
+          sys.exit(1 if alerts else 0)
+          PY
+
   # GitHub disables scheduled workflows after 60 days without repository activity.
   # Push an empty commit when the last one is older than 30 days.
   keepalive:
