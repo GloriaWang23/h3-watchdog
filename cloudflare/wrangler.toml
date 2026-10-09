@@ -1,0 +1,30 @@
+# Cloudflare Worker that calls the H3 Studio watchdog every 5 minutes and emails new
+# incidents. GitHub Actions' schedule (../.github/workflows) stays as a fallback: it fires
+# only every few hours in practice, which is why this exists.
+#
+# Mail goes out through Cloudflare Email Routing on agentmailserver.com (send_email binding):
+# the destination has to be a verified address in that zone's Email Routing settings.
+# Secret (wrangler secret put): WATCHDOG_SECRET, matching Vercel's WATCHDOG_SECRET_CF.
+name = "h3-watchdog"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = false # no public URL: cron only
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[vars]
+WATCHDOG_URL = "https://h3-studio-eight.vercel.app/api/watchdog"
+ALERT_TO = "2414908773@qq.com"
+ALERT_FROM = "watchdog@agentmailserver.com"
+CONSOLE_URL = "https://console.runpod.io/serverless/user/endpoint/n30uxilrpybvau"
+
+# Remembers when the last "watchdog unreachable" email went out, so an outage mails once
+# (then every 2 h) instead of every 5 minutes.
+[[kv_namespaces]]
+binding = "STATE"
+id = "ca79409bb7ad48b694044f775b11b806"
+
+[[send_email]]
+name = "MAIL"
+destination_address = "2414908773@qq.com"
